@@ -213,9 +213,12 @@ export default function Index() {
         } : f);
 
         // Let's re-render markers by removing all existing elements with mapboxgl-marker class
-        // (A bit hacky but works for demo)
         const markers = document.getElementsByClassName('mapboxgl-marker');
-        while (markers.length > 0) { markers[0].parentNode.removeChild(markers[0]); }
+        while (markers.length > 0) { markers[0].parentNode?.removeChild(markers[0]); }
+
+        // Also purge any lingering old Mapbox popups so the new 'Low Grade' warnings sit cleanly
+        const popups = document.getElementsByClassName('mapboxgl-popup');
+        while (popups.length > 0) { popups[0].parentNode?.removeChild(popups[0]); }
 
         // Delay slight to allow state to settle
         const pulsingId = (newScoreData.grade === 'D' || newScoreData.grade === 'F') ? facilityId : null;
@@ -243,10 +246,16 @@ export default function Index() {
       // Get top 2 suitable alternatives
       const alternatives = res.data.filter(f => f.grade === 'A' || f.grade === 'B' || f.grade === 'C').slice(0, 2);
 
-      // Switch to Map View instantly
+      // Switch to Map View instantly natively
       mapContainer.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
       if (lat && lng && map.current) {
+        // Force the map to center over the low-grade facility so the popup is in viewport
+        map.current.flyTo({ center: [lng, lat], zoom: 14.5, essential: true });
+
+        // Trigger a toast so the user gets notified no matter where they are scrolling
+        toast.error(`Hygiene failure detected (Grade ${scoreData.grade}). Panning map to alternative locations!`);
+
         let html = `
           <div class="w-[280px] p-2">
             <div class="text-red-600 font-extrabold mb-3 pb-2 border-b text-sm leading-tight uppercase tracking-tight">
