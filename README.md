@@ -6,10 +6,6 @@ conditions of public toilets in real time and displays a live
 cleanliness grade outside the facility. The platform should
 also guide users to alternative nearby toilets within 1–2 km,
 showing their location, rating, and operational status.
-
-
-Comprehensive README for the repository. This file is a generated, practical guide that documents project goals, structure, setup, usage, training, testing, and contribution pointers.
-
 ---
 
 ## Table of Contents
