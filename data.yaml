@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../train/images
+
+
+nc: 6
+names: ['clogged_sink', 'dirt-floor', 'dirty', 'mold_or_mildew', 'tissue_trash', 'urine_stain']
+
+roboflow:
+  workspace: tosstip
+  project: toilet-cleanliness-byy4f
+  version: 1
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/tosstip/toilet-cleanliness-byy4f/dataset/1
