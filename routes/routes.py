@@ -7,8 +7,11 @@ import cv2
 import numpy as np
 import sqlite3
 import math
+import json
 from ultralytics import YOLO
 from pydantic import BaseModel
+from dotenv import load_dotenv
+import google.generativeai as genai
 
 class FacilityCreate(BaseModel):
     name: str
@@ -26,6 +29,11 @@ app.add_middleware(
 )
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(BASE_DIR)), ".env"))
+if "GEMINI_API" in os.environ:
+    genai.configure(api_key=os.environ["GEMINI_API"])
+
 model_path = os.path.join(BASE_DIR, "Model", "runs", "yolov8_custom4", "weights", "best.pt")
 
 if os.path.exists(model_path):
@@ -70,6 +78,7 @@ def get_facilities():
 @app.post("/facilities")
 def create_facility(fac: FacilityCreate):
     conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("INSERT INTO facilities (name, lat, lng, score, grade, status) VALUES (?, ?, ?, ?, ?, ?)",
               (fac.name, fac.lat, fac.lng, 100, "A", "open"))
@@ -77,12 +86,20 @@ def create_facility(fac: FacilityCreate):
     new_id = c.lastrowid
     
     # Fetch the newly created record to return it
-    conn.row_factory = sqlite3.Row
     c.execute("SELECT * FROM facilities WHERE id = ?", (new_id,))
     new_fac = dict(c.fetchone())
     
     conn.close()
     return new_fac
+
+@app.delete("/facilities/{facility_id}")
+def delete_facility(facility_id: int):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("DELETE FROM facilities WHERE id = ?", (facility_id,))
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
 
 def haversine(lat1, lon1, lat2, lon2):
     R = 6371.0 # Radius of earth in km
@@ -185,3 +202,59 @@ async def detect(facility_id: int, file: UploadFile = File(...)):
         "detections": detections,
         "total_detections": len(detections)
     })
+
+@app.post("/gemini-analyze")
+async def gemini_analyze(file: UploadFile = File(...)):
+    contents = await file.read()
+    
+    np_arr = np.frombuffer(contents, np.uint8)
+    img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+    results = model(img, conf=0.3)
+    detected_img = results[0].plot()
+    
+    _, buffer = cv2.imencode(".jpg", detected_img)
+    encoded_img = base64.b64encode(buffer).decode("utf-8")
+    
+    penalties = 0
+    if len(results) > 0:
+        for box in results[0].boxes:
+            cls_id = int(box.cls[0].item())
+            class_name = model.names[cls_id]
+            if class_name in PENALTY_MAP:
+                penalties += PENALTY_MAP[class_name]
+            else:
+                penalties -= 5
+
+    gemini_data = {"litter_count": 0}
+    try:
+        if "GEMINI_API" in os.environ:
+            generative_model = genai.GenerativeModel('gemini-1.5-flash')
+            image_blob = {"mime_type": "image/jpeg", "data": contents}
+            prompt = 'Analyze this image of a toilet. Return strictly a valid JSON object with 1 key: "litter_count" (integer). Do not include markdown code block tags, just the pure JSON map.'
+            response = generative_model.generate_content([prompt, image_blob])
+            txt = response.text.replace('```json', '').replace('```', '').strip()
+            gemini_data = json.loads(txt)
+            
+            litter = gemini_data.get("litter_count", 0)
+            penalties -= (litter * 10)
+    except Exception as e:
+        print("Gemini Error:", e)
+
+    final_score = max(0, 100 + penalties)
+
+    return JSONResponse({
+        "image_base64": encoded_img,
+        "score": final_score,
+        "gemini": gemini_data
+    })
+
+@app.put("/facilities/{facility_id}/inspect")
+def inspect_facility(facility_id: int, payload: dict):
+    score = payload.get("score", 100)
+    grade = score_to_grade(score)
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("UPDATE facilities SET score = ?, grade = ? WHERE id = ?", (score, grade, facility_id))
+    conn.commit()
+    conn.close()
+    return {"status": "success", "score": score, "grade": grade}
