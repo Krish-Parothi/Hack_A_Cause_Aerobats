@@ -13,7 +13,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
 // Initialize Mapbox with a token
-mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || "pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4M29iazA2Z2gycXA4N2pmbDZmangifQ.-g_vE53SD2WrJ6tFX7QHmA";
+mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN ;
 
 const GRADE_COLORS = {
   A: '#27AE60', B: '#82E0AA', C: '#F4D03F', D: '#E67E22', F: '#C0392B'
