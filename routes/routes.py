@@ -8,6 +8,12 @@ import numpy as np
 import sqlite3
 import math
 from ultralytics import YOLO
+from pydantic import BaseModel
+
+class FacilityCreate(BaseModel):
+    name: str
+    lat: float
+    lng: float
 
 app = FastAPI()
 
@@ -39,11 +45,11 @@ def init_db():
     c.execute("SELECT COUNT(*) FROM facilities")
     if c.fetchone()[0] == 0:
         facilities = [
-            (1, "Zero Mile Public Toilet", 21.1498, 79.0806, 92, "A", "open"),
-            (2, "Sitabuldi Restroom", 21.1450, 79.0820, 63, "C", "open"),
-            (3, "Maharajbagh Zoo Toilet", 21.1400, 79.0750, 81, "B", "open"),
-            (4, "Vidhan Bhavan Facility", 21.1550, 79.0850, 22, "F", "closed"),
-            (5, "RBI Square Restroom", 21.1510, 79.0780, 44, "D", "open"),
+            (1, "Zero Mile Public Toilet", 21.1458, 79.0882, 92, "A", "open"),
+            (2, "Sitabuldi Restroom", 21.1412, 79.0849, 63, "C", "open"),
+            (3, "Empress Mall Facility", 21.1501, 79.0912, 81, "B", "open"),
+            (4, "Mahal Public Toilet", 21.1389, 79.0921, 22, "F", "closed"),
+            (5, "Ganeshpeth Facility", 21.1371, 79.0836, 44, "D", "open"),
         ]
         c.executemany("INSERT INTO facilities VALUES (?, ?, ?, ?, ?, ?, ?)", facilities)
         conn.commit()
@@ -60,6 +66,23 @@ def get_facilities():
     rows = [dict(row) for row in c.fetchall()]
     conn.close()
     return rows
+
+@app.post("/facilities")
+def create_facility(fac: FacilityCreate):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("INSERT INTO facilities (name, lat, lng, score, grade, status) VALUES (?, ?, ?, ?, ?, ?)",
+              (fac.name, fac.lat, fac.lng, 100, "A", "open"))
+    conn.commit()
+    new_id = c.lastrowid
+    
+    # Fetch the newly created record to return it
+    conn.row_factory = sqlite3.Row
+    c.execute("SELECT * FROM facilities WHERE id = ?", (new_id,))
+    new_fac = dict(c.fetchone())
+    
+    conn.close()
+    return new_fac
 
 def haversine(lat1, lon1, lat2, lon2):
     R = 6371.0 # Radius of earth in km
@@ -113,9 +136,9 @@ def score_to_grade(score: int) -> str:
     if score >= 40: return "D"
     return "F"
 
-@app.post("/score")
-@app.post("/detect")
-async def detect(file: UploadFile = File(...)):
+@app.post("/score/{facility_id}")
+@app.post("/detect/{facility_id}")
+async def detect(facility_id: int, file: UploadFile = File(...)):
     contents = await file.read()
     np_arr = np.frombuffer(contents, np.uint8)
     img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
@@ -147,6 +170,12 @@ async def detect(file: UploadFile = File(...)):
 
     final_score = max(0, 100 + penalties)
     grade = score_to_grade(final_score)
+
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("UPDATE facilities SET score = ?, grade = ? WHERE id = ?", (final_score, grade, facility_id))
+    conn.commit()
+    conn.close()
 
     return JSONResponse({
         "score": final_score,
