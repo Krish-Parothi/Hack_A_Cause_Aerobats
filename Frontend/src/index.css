@@ -6,7 +6,7 @@
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
+    --background: 24 20% 98%;
     --foreground: 220 25% 10%;
 
     --card: 0 0% 100%;
@@ -15,26 +15,26 @@
     --popover: 0 0% 100%;
     --popover-foreground: 220 25% 10%;
 
-    --primary: 168 80% 36%;
+    --primary: 28 80% 45%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 18% 94%;
+    --secondary: 40 20% 92%;
     --secondary-foreground: 220 25% 10%;
 
-    --muted: 210 18% 96%;
-    --muted-foreground: 220 10% 46%;
+    --muted: 40 20% 92%;
+    --muted-foreground: 24 15% 40%;
 
-    --accent: 168 60% 94%;
-    --accent-foreground: 168 80% 20%;
+    --accent: 28 80% 93%;
+    --accent-foreground: 28 80% 25%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 20% 90%;
-    --input: 214 20% 90%;
-    --ring: 168 80% 36%;
+    --border: 24 20% 86%;
+    --input: 24 20% 86%;
+    --ring: 28 80% 45%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
 
     --grade-a: 152 69% 41%;
     --grade-b: 142 50% 52%;
@@ -57,33 +57,33 @@
   }
 
   .dark {
-    --background: 220 25% 6%;
-    --foreground: 210 20% 95%;
-    --card: 220 20% 10%;
-    --card-foreground: 210 20% 95%;
-    --popover: 220 20% 10%;
-    --popover-foreground: 210 20% 95%;
-    --primary: 168 80% 42%;
+    --background: 24 10% 10%;
+    --foreground: 40 20% 92%;
+    --card: 24 10% 12%;
+    --card-foreground: 40 20% 92%;
+    --popover: 24 10% 12%;
+    --popover-foreground: 40 20% 92%;
+    --primary: 28 80% 55%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 15% 16%;
-    --secondary-foreground: 210 20% 95%;
-    --muted: 220 15% 16%;
-    --muted-foreground: 215 15% 55%;
-    --accent: 168 40% 14%;
-    --accent-foreground: 168 80% 70%;
-    --destructive: 0 62% 30%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 220 15% 18%;
-    --input: 220 15% 18%;
-    --ring: 168 80% 42%;
-    --sidebar-background: 220 20% 8%;
-    --sidebar-foreground: 210 20% 95%;
-    --sidebar-primary: 168 80% 42%;
+    --secondary: 24 15% 18%;
+    --secondary-foreground: 40 20% 92%;
+    --muted: 24 15% 18%;
+    --muted-foreground: 30 15% 65%;
+    --accent: 28 40% 20%;
+    --accent-foreground: 28 80% 75%;
+    --destructive: 0 62% 40%;
+    --destructive-foreground: 40 20% 92%;
+    --border: 24 15% 20%;
+    --input: 24 15% 20%;
+    --ring: 28 80% 55%;
+    --sidebar-background: 24 10% 8%;
+    --sidebar-foreground: 40 20% 92%;
+    --sidebar-primary: 28 80% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 168 40% 14%;
-    --sidebar-accent-foreground: 168 80% 70%;
-    --sidebar-border: 220 15% 18%;
-    --sidebar-ring: 168 80% 42%;
+    --sidebar-accent: 28 40% 20%;
+    --sidebar-accent-foreground: 28 80% 75%;
+    --sidebar-border: 24 15% 20%;
+    --sidebar-ring: 28 80% 55%;
   }
 }
 
@@ -91,22 +91,58 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
   }
 }
 
 @layer utilities {
-  .grade-a { color: hsl(var(--grade-a)); }
-  .grade-b { color: hsl(var(--grade-b)); }
-  .grade-c { color: hsl(var(--grade-c)); }
-  .grade-d { color: hsl(var(--grade-d)); }
-  .bg-grade-a { background-color: hsl(var(--grade-a)); }
-  .bg-grade-b { background-color: hsl(var(--grade-b)); }
-  .bg-grade-c { background-color: hsl(var(--grade-c)); }
-  .bg-grade-d { background-color: hsl(var(--grade-d)); }
-  .bg-grade-a\/10 { background-color: hsl(var(--grade-a) / 0.1); }
-  .bg-grade-b\/10 { background-color: hsl(var(--grade-b) / 0.1); }
-  .bg-grade-c\/10 { background-color: hsl(var(--grade-c) / 0.1); }
-  .bg-grade-d\/10 { background-color: hsl(var(--grade-d) / 0.1); }
+  .grade-a {
+    color: hsl(var(--grade-a));
+  }
+
+  .grade-b {
+    color: hsl(var(--grade-b));
+  }
+
+  .grade-c {
+    color: hsl(var(--grade-c));
+  }
+
+  .grade-d {
+    color: hsl(var(--grade-d));
+  }
+
+  .bg-grade-a {
+    background-color: hsl(var(--grade-a));
+  }
+
+  .bg-grade-b {
+    background-color: hsl(var(--grade-b));
+  }
+
+  .bg-grade-c {
+    background-color: hsl(var(--grade-c));
+  }
+
+  .bg-grade-d {
+    background-color: hsl(var(--grade-d));
+  }
+
+  .bg-grade-a\/10 {
+    background-color: hsl(var(--grade-a) / 0.1);
+  }
+
+  .bg-grade-b\/10 {
+    background-color: hsl(var(--grade-b) / 0.1);
+  }
+
+  .bg-grade-c\/10 {
+    background-color: hsl(var(--grade-c) / 0.1);
+  }
+
+  .bg-grade-d\/10 {
+    background-color: hsl(var(--grade-d) / 0.1);
+  }
 }

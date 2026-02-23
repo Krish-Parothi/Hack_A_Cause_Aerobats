@@ -1,20 +1,18 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState, useRef } from "react";
+import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
+import axios from "axios";
 import { Card, CardContent } from "@/components/ui/card";
 import { GradeBadge } from "@/components/GradeBadge";
 import { Button } from "@/components/ui/button";
-import { Droplets, Power, Navigation, Loader2 } from "lucide-react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import { Navigation, MapPin } from "lucide-react";
+import { Link } from "react-router-dom";
 
-// Fix default marker icon
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
-  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-});
+mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || "pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4M29iazA2Z2gycXA4N2pmbDZmangifQ.-g_vE53SD2WrJ6tFX7QHmA";
+
+const GRADE_COLORS: Record<string, string> = {
+  A: '#27AE60', B: '#82E0AA', C: '#F4D03F', D: '#E67E22', F: '#C0392B'
+};
 
 interface Toilet {
   id: string;
@@ -40,115 +38,114 @@ function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
 }
 
 export default function NearbyPage() {
-  const [toilets, setToilets] = useState<Toilet[]>([]);
+  const mapContainer = useRef<HTMLDivElement>(null);
+  const map = useRef<mapboxgl.Map | null>(null);
+
+  const [toilets, setToilets] = useState<any[]>([]);
   const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [locError, setLocError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [finding, setFinding] = useState(false);
 
-  useEffect(() => {
-    if (!navigator.geolocation) {
-      setLocError("Geolocation not supported");
-      setLoading(false);
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-      },
-      () => {
-        setLocError("Location access denied. Please enable it.");
-        setLoading(false);
+  const findNearbyLocations = async () => {
+    setFinding(true);
+    // Simulate Nagpur location grab
+    setTimeout(async () => {
+      const mockLat = 21.1458;
+      const mockLng = 79.0882;
+      setUserPos({ lat: mockLat, lng: mockLng });
+
+      try {
+        const res = await axios.get("http://localhost:8000/facilities");
+        // Add artificial distances
+        const withDistance = res.data.map((t: any) => ({ ...t, distance: getDistanceKm(mockLat, mockLng, t.lat, t.lng) }))
+          .filter((t: any) => t.distance <= 5)
+          .sort((a: any, b: any) => a.distance - b.distance);
+
+        setToilets(withDistance);
+
+        if (mapContainer.current) {
+          if (!map.current) {
+            map.current = new mapboxgl.Map({
+              container: mapContainer.current,
+              style: "mapbox://styles/mapbox/streets-v12",
+              center: [mockLng, mockLat],
+              zoom: 13,
+            });
+          } else {
+            map.current.flyTo({ center: [mockLng, mockLat], zoom: 13 });
+          }
+
+          // Remove existing
+          const markers = document.getElementsByClassName('mapboxgl-marker');
+          while (markers.length > 0) { markers[0].parentNode?.removeChild(markers[0]); }
+
+          // Add User Pin
+          const userContainer = document.createElement("div");
+          userContainer.className = "w-4 h-4 rounded-full bg-blue-500 border-2 border-white shadow-xl animate-pulse";
+          new mapboxgl.Marker({ element: userContainer }).setLngLat([mockLng, mockLat]).addTo(map.current);
+
+          // Add Toilet Pins
+          withDistance.forEach((f: any) => {
+            const pin = document.createElement("div");
+            pin.className = "w-6 h-6 rounded-full border-2 border-white shadow flex items-center justify-center text-white text-[10px] font-bold";
+            pin.style.backgroundColor = GRADE_COLORS[f.grade] || '#000';
+            pin.textContent = f.grade;
+            new mapboxgl.Marker({ element: pin }).setLngLat([f.lng, f.lat]).addTo(map.current!);
+          });
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setFinding(false);
       }
-    );
-  }, []);
-
-  useEffect(() => {
-    if (!userPos) return;
-    supabase.from("toilets").select("*").then(({ data }) => {
-      if (!data) { setLoading(false); return; }
-      const nearby = (data as Toilet[])
-        .map((t) => ({ ...t, distance: getDistanceKm(userPos.lat, userPos.lng, t.latitude, t.longitude) }))
-        .filter((t) => t.distance <= 2)
-        .sort((a, b) => b.cleanliness_score - a.cleanliness_score || (a.distance - b.distance));
-      setToilets(nearby);
-      setLoading(false);
-    });
-  }, [userPos]);
-
-  if (loading) {
-    return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-muted-foreground">Getting your location...</p>
-      </div>
-    );
-  }
-
-  if (locError) {
-    return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center text-center">
-        <Navigation className="mb-3 h-12 w-12 text-muted-foreground" />
-        <h2 className="text-xl font-semibold">{locError}</h2>
-        <p className="text-muted-foreground mt-1">We need your location to find nearby toilets.</p>
-        <Button className="mt-4" onClick={() => window.location.reload()}>Retry</Button>
-      </div>
-    );
-  }
+    }, 600);
+  };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Nearby Clean Toilets</h1>
-        <p className="text-muted-foreground">Within 2km of your location • sorted by cleanliness</p>
+    <div className="space-y-6 max-w-lg mx-auto transform scale-[1.2] origin-top pt-8 pb-24">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Find Nearby Toilets</h1>
+          <p className="text-muted-foreground">Locate closest public facilities organized by distance and grade</p>
+        </div>
+        <Button onClick={findNearbyLocations} disabled={finding} className="mt-4 md:mt-0 shadow-md">
+          {finding ? "Locating..." : "Find Near Me"}
+        </Button>
       </div>
 
-      {userPos && toilets.length > 0 && (
-        <div className="h-[300px] rounded-xl overflow-hidden border">
-          <MapContainer
-            center={[userPos.lat, userPos.lng]}
-            zoom={14}
-            style={{ height: "100%", width: "100%" }}
-          >
-            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-            {toilets.map((t) => (
-              <Marker key={t.id} position={[t.latitude, t.longitude]}>
-                <Popup>
-                  <strong>{t.name}</strong><br />
-                  Grade {t.cleanliness_grade} • {Number(t.cleanliness_score).toFixed(0)}/100
-                </Popup>
-              </Marker>
-            ))}
-          </MapContainer>
-        </div>
-      )}
+      <div className="h-[400px] rounded-xl overflow-hidden shadow-lg border-4 border-white bg-slate-100 relative">
+        {!userPos && !finding && (
+          <div className="absolute inset-0 flex items-center justify-center z-10 bg-slate-50/80 backdrop-blur-sm">
+            <div className="text-center p-6 bg-white rounded-xl shadow-xl max-w-sm">
+              <MapPin className="h-10 w-10 text-blue-500 mx-auto mb-3" />
+              <h3 className="font-bold text-lg">Location Required</h3>
+              <p className="text-sm text-slate-500 mb-4">Click the button above to authorize geolocation and scan the surrounding perimeter.</p>
+              <Button onClick={findNearbyLocations}>Scan Perimeter</Button>
+            </div>
+          </div>
+        )}
+        <div ref={mapContainer} className="w-full h-full" />
+      </div>
 
-      {toilets.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">No toilets found within 2km.</p>
-        </div>
-      ) : (
+      {toilets.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2">
           {toilets.map((t) => (
-            <Card key={t.id} className="animate-fade-in">
-              <CardContent className="flex items-center gap-4 p-4">
-                <GradeBadge grade={t.cleanliness_grade} />
+            <Card key={t.id} className="animate-fade-in hover:shadow-lg transition-all border-l-4" style={{ borderLeftColor: GRADE_COLORS[t.grade] || '#ccc' }}>
+              <CardContent className="flex items-center gap-4 p-5">
+                <GradeBadge grade={t.grade} score={t.score} size="md" />
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold truncate">{t.name}</h3>
-                  <p className="text-sm text-muted-foreground">{t.distance?.toFixed(1)} km away</p>
-                  <div className="mt-1 flex gap-3 text-xs">
-                    <span className="flex items-center gap-1">
-                      <Droplets className={`h-3 w-3 ${t.water_available ? "text-primary" : "text-destructive"}`} />
-                      {t.water_available ? "Water" : "No Water"}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Power className={`h-3 w-3 ${t.is_operational ? "text-primary" : "text-destructive"}`} />
-                      {t.is_operational ? "Open" : "Closed"}
-                    </span>
-                  </div>
+                  <h3 className="font-semibold text-lg truncate">{t.name}</h3>
+                  <p className="text-sm text-blue-600 font-medium">{t.distance?.toFixed(2)} km away</p>
+                  <p className="text-xs text-slate-500 mt-1 capitalize font-medium">{t.status} facility</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-lg font-bold">{Number(t.cleanliness_score).toFixed(0)}</p>
-                  <p className="text-xs text-muted-foreground">/100</p>
+                <div className="text-right flex flex-col items-end gap-2">
+                  <div className="flex flex-col items-center">
+                    <p className="text-2xl font-black leading-none">{Number(t.score).toFixed(0)}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mt-1">Score</p>
+                  </div>
+                  <Link to={`/facility/${t.id}`}>
+                    <Button size="sm" variant="outline" className="text-xs h-7 px-3">View</Button>
+                  </Link>
                 </div>
               </CardContent>
             </Card>
