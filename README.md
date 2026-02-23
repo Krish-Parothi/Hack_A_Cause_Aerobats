@@ -1,11 +1,14 @@
 # Hack_A_Cause_Aerobats
 
 ### Problem Statement:
+
 Create an AI-driven system that monitors hygiene
 conditions of public toilets in real time and displays a live
 cleanliness grade outside the facility. The platform should
 also guide users to alternative nearby toilets within 1–2 km,
 showing their location, rating, and operational status.
+
+
 ---
 
 ## Table of Contents
