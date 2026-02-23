@@ -50,6 +50,13 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      boxShadow: {
+        'glow': '0 0 15px -3px hsl(var(--primary) / 0.6), 0 0 6px -2px hsl(var(--primary) / 0.8)',
+        'glow-lg': '0 0 25px -4px hsl(var(--primary) / 0.6), 0 0 10px -2px hsl(var(--primary) / 0.8)',
+      },
+      textShadow: {
+        'glow': '0 0 8px hsl(var(--primary) / 0.8)',
+      },
       keyframes: {
         "accordion-down": { from: { height: "0" }, to: { height: "var(--radix-accordion-content-height)" } },
         "accordion-up": { from: { height: "var(--radix-accordion-content-height)" }, to: { height: "0" } },
